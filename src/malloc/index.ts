@@ -6,6 +6,6 @@ export const NewStorage = (initialSize: number): Storage => {
   return new SinglePageStorage(initialSize)
 }
 
-export const LoadStorage = (buffer: Buffer): Storage => {
-  return SinglePageStorage.load(buffer)
+export const LoadStorage = (buffer: Buffer, copy = false): Storage => {
+  return SinglePageStorage.load(buffer, copy)
 }
