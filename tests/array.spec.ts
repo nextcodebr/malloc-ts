@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { GrowableArray } from '@/collections/array'
 import { Serializer } from '@/io'
+import { logg } from '@/log'
+import { tmp } from './util'
+
+export { }
 
 type VO = {
   age: number
@@ -53,6 +57,30 @@ const mock = (i: number) => {
   return vo
 }
 
+const roundtrip = (array: GrowableArray<VO>, max: number) => {
+  expect(array.length).toBe(max)
+
+  for (let i = 0; i < max; i++) {
+    const exp = mock(i)
+
+    const found = array.get(i)!
+    expect(found).not.toBeUndefined()
+
+    expect(found.age).toBe(exp.age)
+    expect(found.name).toBe(exp.name)
+
+    if (exp.siblings) {
+      for (let i = 0; i < exp.siblings.length; i++) {
+        const s = found.siblings![i]
+        expect(s.age).toBe(exp.siblings[i].age)
+        expect(s.name).toBe(exp.siblings[i].name)
+      }
+    } else {
+      expect(found.siblings).toBeUndefined()
+    }
+  }
+}
+
 describe('Test Storage', () => {
   const array = new GrowableArray(16, VOSerializer)
   const MAX = 1000
@@ -68,26 +96,22 @@ describe('Test Storage', () => {
   })
 
   it('Will Load collectly', () => {
-    expect(array.length).toBe(MAX)
+    roundtrip(array, MAX)
+  })
 
-    for (let i = 0; i < MAX; i++) {
-      const exp = mock(i)
+  it('Will keep working after cloning', () => {
+    const buffer = array.serialize()
+    const copy = GrowableArray.load(buffer, VOSerializer)
 
-      const found = array.get(i)!
-      expect(found).not.toBeUndefined()
+    roundtrip(copy, MAX)
+  })
 
-      expect(found.age).toBe(exp.age)
-      expect(found.name).toBe(exp.name)
+  it('Will keep working after persisting to disk and loading', () => {
+    const temp = tmp('.bin')
+    logg(`Created temp file ${temp}`)
+    array.saveOn(temp)
+    const copy = GrowableArray.load(temp, VOSerializer)
 
-      if (exp.siblings) {
-        for (let i = 0; i < exp.siblings.length; i++) {
-          const s = found.siblings![i]
-          expect(s.age).toBe(exp.siblings[i].age)
-          expect(s.name).toBe(exp.siblings[i].name)
-        }
-      } else {
-        expect(found.siblings).toBeUndefined()
-      }
-    }
+    roundtrip(copy, MAX)
   })
 })

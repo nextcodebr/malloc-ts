@@ -1,5 +1,6 @@
-import { NewBigMap } from '@/collections/map'
+import { NewBigMap, LoadBigMap, IMap } from '@/collections/map'
 import { Serializer } from '@/io'
+import { tmp } from './util'
 
 const ks: Serializer<number> = {
   serialize: (v, dst) => {
@@ -17,11 +18,24 @@ const vs: Serializer<string> = {
   }
 }
 
+const MAX = 10000
+
+const roundtrip = (map: IMap<number, string>) => {
+  expect(map.size).toBe(MAX)
+  for (let i = 0; i < MAX; i++) {
+    const exp = `${i}`
+    const found = map.get(i)
+
+    expect(found).not.toBeNull()
+    expect(found).toBe(exp)
+  }
+}
+
 describe('Test Storage', () => {
   const map = NewBigMap<number, string>(4, v => v, ks, vs, { tableSize: 4999, timestamps: true })
 
   it('Will put', () => {
-    for (let i = 0; i < 10000; i++) {
+    for (let i = 0; i < MAX; i++) {
       const prev = map.put(i, `${i}`, true)
 
       expect(prev).toBeNull()
@@ -34,12 +48,30 @@ describe('Test Storage', () => {
   })
 
   it('Will get', () => {
-    for (let i = 0; i < 10000; i++) {
-      const exp = `${i}`
-      const found = map.get(i)
+    roundtrip(map)
+  })
 
-      expect(found).not.toBeNull()
-      expect(found).toBe(exp)
+  it('Will stream', () => {
+    let count = 0
+
+    for (const { key, value } of map.entries()) {
+      expect(value).toBe(`${key}`)
+      count++
     }
+
+    expect(count).toBe(MAX)
+  })
+
+  it('Will keep working after cloning', () => {
+    const buffer = map.serialize()
+    const copy = LoadBigMap(buffer, v => v, ks, vs)
+    roundtrip(copy)
+  })
+
+  it('Will keep working after persisting', () => {
+    const temp = tmp()
+    map.saveOn(temp)
+    const copy = LoadBigMap(temp, v => v, ks, vs)
+    roundtrip(copy)
   })
 })

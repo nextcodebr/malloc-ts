@@ -1,13 +1,12 @@
 import '@/32bit.math'
-
-import console from 'console'
+import { logg } from '@/log'
 
 describe('Test 32 bit math', () => {
   const one = 1
   const max = one << 31
   const abs = Math.abs(max)
 
-  console.log(`Bit mask testing of ${abs} => ${abs.toString(2)} (${abs.toString(2).length})`)
+  logg(`Bit mask testing of ${abs} => ${abs.toString(2)} (${abs.toString(2).length})`)
 
   it('Test in Safe Range (One)', () => {
     for (let i = 0; i < 31; i++) {

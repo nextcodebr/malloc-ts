@@ -1,7 +1,6 @@
 import { NewStorage } from '@/malloc'
-
+import { logg } from '@/log'
 import random from 'random'
-import console from 'console'
 
 const swap = <T> (array: T[], i: number, j: number) => {
   const tmp = array[i]
@@ -97,6 +96,6 @@ describe('Test Allocate and Free Chunks of random size', () => {
     }
     stats.batches++
 
-    console.log(`${JSON.stringify(stats)}`)
+    logg(`${JSON.stringify(stats)}`)
   })
 })

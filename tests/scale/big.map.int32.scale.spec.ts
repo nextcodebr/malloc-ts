@@ -1,6 +1,8 @@
 import { LoadInt32BigMap, NewInt32BigMap, IMap } from '@/collections/map'
 import { Serializer } from '@/io'
-import { tmp } from './util'
+import { tmp } from '../util'
+import { logg } from '@/log'
+import { statSync } from 'fs'
 
 const vs: Serializer<string> = {
   serialize: (v, dst) => {
@@ -11,7 +13,9 @@ const vs: Serializer<string> = {
   }
 }
 
-const MAX = 10000
+const MAX = 5000 * 1000
+
+const LOG_MODULUS = MAX / 100
 
 const roundtrip = (map: IMap<number, string>) => {
   expect(map.size).toBe(MAX)
@@ -21,6 +25,10 @@ const roundtrip = (map: IMap<number, string>) => {
 
     expect(found).not.toBeNull()
     expect(found).toBe(exp)
+
+    if (i && !(i % LOG_MODULUS)) {
+      logg(`Read so far: ${i}`)
+    }
   }
 }
 
@@ -36,7 +44,12 @@ describe('Test Storage', () => {
 
       expect(found).not.toBeNull()
       expect(found).toBe(`${i}`)
+
+      if (i && !(i % LOG_MODULUS)) {
+        logg(`Written so far: ${i}`)
+      }
     }
+    logg(`Finished writing ${MAX} entries. Image Size: ${map.imageSize}`)
   })
 
   it('Will get', () => {
@@ -44,17 +57,21 @@ describe('Test Storage', () => {
   })
 
   it('Will stream', () => {
-    let count = 0
+    let i = 0
 
     for (const { key, value } of map.entries()) {
       expect(value).toBe(`${key}`)
-      count++
+      i++
+      if (!(i % LOG_MODULUS)) {
+        logg(`Streamed so far: ${i}`)
+      }
     }
 
-    expect(count).toBe(MAX)
+    expect(i).toBe(MAX)
   })
 
   it('Will keep working after cloning', () => {
+    logg(`Serializing ${map.imageSize} bytes`)
     const buffer = map.serialize()
     const copy = LoadInt32BigMap(buffer, vs)
     roundtrip(copy)
@@ -63,6 +80,9 @@ describe('Test Storage', () => {
   it('Will keep working after persisting', () => {
     const temp = tmp()
     map.saveOn(temp)
+
+    expect(map.imageSize).toBe(statSync(temp).size)
+
     const copy = LoadInt32BigMap(temp, vs)
     roundtrip(copy)
   })
