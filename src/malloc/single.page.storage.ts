@@ -1,29 +1,63 @@
 import { Allocator, Mem, offset, Storage } from './share'
 import { DLAllocator32 } from './malloc.32'
+import { logg, Level } from '../log'
+import { PathLike } from 'fs'
+import { copyOf, inflate } from '../io'
+import process from 'process'
 
 const SMALL_PAGE_SIZE = 0x1000
 const REALLOC_CHUNK = 1024 * SMALL_PAGE_SIZE
 const REALLOC_CHUNK_MASK = REALLOC_CHUNK - 1
 
 const align = (request: number) => {
-  return request < REALLOC_CHUNK ? REALLOC_CHUNK : REALLOC_CHUNK * (request / REALLOC_CHUNK + ((request & REALLOC_CHUNK_MASK) === 0 ? 0 : 1))
+  return request < REALLOC_CHUNK ? REALLOC_CHUNK : REALLOC_CHUNK * (Math.floor(request / REALLOC_CHUNK) + ((request & REALLOC_CHUNK_MASK) === 0 ? 0 : 1))
 }
 
 const EMPTY = Buffer.alloc(0)
 
+const seqId = () => {
+  // return BigInt(new Date().getTime())
+  const [s, ns] = process.hrtime()
+  return BigInt(s) * 1000n * 1000n * 1000n + BigInt(ns)
+}
+
 export class SinglePageStorage implements Storage {
+  readonly id: bigint
   readonly allocator: Allocator
   mem: Buffer
 
+  public static load (src: PathLike, copy = true) {
+    let buffer = inflate(src)
+    const id = buffer.readBigInt64LE(0)
+    buffer = buffer.slice(8)
+    const larval: any = Object.setPrototypeOf({ id }, SinglePageStorage.prototype)
+
+    const allocator = DLAllocator32.load(buffer, larval as SinglePageStorage)
+
+    let mem = buffer.slice(allocator.metadataLength())
+    if (copy) {
+      mem = copyOf(mem)
+    }
+
+    larval.allocator = allocator
+    larval.mem = mem
+
+    return larval as SinglePageStorage
+  }
+
   constructor (initialSize: number) {
+    this.id = seqId()
     this.allocator = new DLAllocator32(this)
     this.mem = EMPTY
     this.expand(initialSize)
   }
 
   private expand (request: number) {
-    const aligned = align(request)
-    const newSize = align(this.mem.byteLength + request)
+    const size = this.mem.byteLength
+    const newSize = align(size + request)
+
+    logg(`#${this.id}: Expanding ${this.mem.byteLength} to ${newSize}`, Level.DEBUG)
+
     const next = Buffer.alloc(newSize)
 
     if (this.mem.byteLength) {
@@ -31,7 +65,7 @@ export class SinglePageStorage implements Storage {
     }
     this.mem = next
 
-    this.allocator.expand(aligned)
+    this.allocator.expand(newSize - size)
 
     return next
   }
@@ -149,12 +183,14 @@ export class SinglePageStorage implements Storage {
     return this.mem.byteLength
   }
 
-  imageSize () {
-    return this.reserved()
+  get imageSize () {
+    return 8 + this.reserved() + this.allocator.metadataLength()
   }
 
-  save (dst: Buffer) {
-    this.allocator.save(dst)
+  storeOn (dst: Buffer) {
+    dst.writeBigInt64LE(this.id)
+    dst = dst.slice(8)
+    this.allocator.storeOn(dst)
     this.mem.copy(dst, this.allocator.metadataLength())
   }
 
@@ -164,17 +200,5 @@ export class SinglePageStorage implements Storage {
       throw new Error(`Invalid memory access: ${off}+${src.byteLength} > ${p}+${sz}`)
     }
     src.copy(this.mem, p + off, 0, src.byteLength)
-  }
-
-  static load (src: Buffer) {
-    const opaque: any = Object.setPrototypeOf({}, SinglePageStorage.prototype)
-
-    const rv = opaque as SinglePageStorage
-
-    const allocatror = DLAllocator32.load(src, rv)
-    opaque.allocator = allocatror
-    opaque.mem = src.slice(allocatror.metadataOverhead())
-
-    return rv
   }
 }
