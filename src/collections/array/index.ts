@@ -1,5 +1,6 @@
 import { Mem, LoadStorage, NewStorage, Storage } from '../../malloc'
-import { newLength, Serializer, Pipe } from '../../io'
+import { inflate, isBuffer, newLength, Pipe, Serializer, sync } from '../../io'
+import { PathLike } from 'fs'
 
 const failed = (len: number) => {
   return new Error(`Failed to allocate ${len} bytes`)
@@ -16,6 +17,26 @@ export class GrowableArray<T> {
   private readonly serializer: Serializer<T>
   private readonly storage: Storage
   private mem: Mem
+
+  public static load<V> (src: PathLike, serializer: Serializer<V>, copy = false): GrowableArray<V> {
+    const buf = inflate(src)
+    const size = buf.readUInt32LE(0)
+    const offset = buf.readUInt32LE(4)
+    const length = buf.readUInt32LE(8)
+    const storage = LoadStorage(buf.slice(12), copy)
+
+    const mem: Mem = {
+      offset,
+      chunk: storage.slab(offset, length)
+    }
+
+    return Object.setPrototypeOf({
+      size,
+      storage,
+      serializer,
+      mem
+    }, GrowableArray.prototype)
+  }
 
   constructor (capacity: number, serializer: Serializer<T>, avgObjSize?: number) {
     this.size = 0
@@ -136,26 +157,28 @@ export class GrowableArray<T> {
     return rv
   }
 
-  storeTo (dst: Buffer) {
-    dst.writeInt32LE(this.size, 0)
-    this.storage.save(dst.slice(4))
+  storeOn (dst: Buffer) {
+    dst.writeUInt32LE(this.size, 0)
+    dst.writeUInt32LE(this.mem.offset, 4)
+    dst.writeUInt32LE(this.mem.chunk.byteLength, 8)
+    this.storage.storeOn(dst.slice(12))
   }
 
   serialize () {
-    const dst = Buffer.allocUnsafe(4 + this.storage.imageSize())
-    this.storeTo(dst)
+    const dst = Buffer.allocUnsafe(12 + this.storage.imageSize)
+    this.storeOn(dst)
+    return dst
   }
 
-  public static load<V> (src: Buffer, serializer: Serializer<V>): GrowableArray<V> {
-    const cap = src.readInt32LE(0)
-    const size = src.readInt32LE(4)
-    const storage = LoadStorage(src.slice(8))
+  public saveOn (dst: PathLike) {
+    if (isBuffer(dst)) {
+      this.storeOn(dst as Buffer)
+    } else {
+      sync(this.serialize(), dst as string)
+    }
+  }
 
-    return Object.setPrototypeOf({
-      cap,
-      size,
-      storage,
-      serializer
-    }, GrowableArray.prototype)
+  public get imageSize () {
+    return 12 + this.storage.imageSize
   }
 }
