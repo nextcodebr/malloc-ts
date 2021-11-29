@@ -1,0 +1,21 @@
+node_modules
+dist
+coverage
+docker-compose-dev.yml
+keys
+**/nvm/
+**/secrets/**
+
+### direnv ###
+.direnv
+**/*/.envrc
+.envrc
+
+### macOS ###
+# General
+**/*/.DS_Store
+.DS_Store
+.AppleDouble
+.LSOverride
+
+src/domain/repository/cache/**

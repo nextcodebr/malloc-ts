@@ -1,0 +1,14 @@
+.editorconfig
+.eslintignore
+.eslintrc.json
+.lintstagedrc.json
+jest.config.js
+tsconfig-build.json
+tsconfig.json
+.husky/
+coverage/
+src/
+documentation
+tests
+**/*.js.map
+**/*.ts.map
