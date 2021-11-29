@@ -1,3 +1,7 @@
+import { PathLike, readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
+import { dirname } from 'path'
+import { URL } from 'url'
+
 const SOFT_MAX_ARRAY_LENGTH = 0x7FFFFFFF - 8
 
 const EMPTY = Buffer.allocUnsafe(0)
@@ -64,6 +68,49 @@ const unpack = (b: bigint, bits: number, rv: boolean[]) => {
   for (let i = 0n; i < end; i++) {
     rv.push((b & (1n << i)) !== 0n)
   }
+}
+
+export const sync = (src: Buffer, dst: string) => {
+  if (!existsSync(dirname(dst))) {
+    mkdirSync(dirname(dst), { recursive: true })
+  }
+  writeFileSync(dst, src)
+}
+
+export const isBuffer = (o?: any): boolean => {
+  return o?.constructor?.name === 'Buffer'
+}
+
+export const inflate = (source: PathLike): Buffer => {
+  if (isBuffer(source)) {
+    return source as Buffer
+  }
+
+  let path: string
+
+  if (typeof source === 'string') {
+    path = source
+  } else {
+    const url = source as URL
+    if (url.protocol === 'file:') {
+      path = url.pathname
+    } else {
+      throw new Error(`Unsupported protocol: ${url.protocol}`)
+    }
+  }
+
+  return readFileSync(path)
+}
+
+export const copyOf = (src: Buffer, start?: number, end?: number) => {
+  start = start ?? 0
+  end = end ?? src.byteLength
+  if (end < start) {
+    throw new Error(`${end}<${start}`)
+  }
+  const tmp = Buffer.allocUnsafe(end - start)
+  src.copy(tmp, 0, start, end)
+  return tmp
 }
 
 export class Source {
