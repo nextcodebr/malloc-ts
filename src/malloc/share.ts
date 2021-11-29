@@ -18,7 +18,7 @@ export interface Allocator {
 
   expand: (moreBytes: usize) => void
 
-  save: (dst: Buffer) => void
+  storeOn: (dst: Buffer) => void
 
   sizeOf: (address: offset) => usize
 
@@ -42,7 +42,7 @@ export interface Storage {
 
   free: (address: offset) => boolean
 
-  imageSize: () => number
+  imageSize: number
 
   malloc: (size: usize) => Mem | null
 
@@ -64,7 +64,7 @@ export interface Storage {
 
   reserved: () => usize
 
-  save: (dst: Buffer) => void
+  storeOn: (dst: Buffer) => void
 
   sizeOf: (address: offset) => usize
 
