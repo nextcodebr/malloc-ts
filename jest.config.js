@@ -14,6 +14,11 @@ module.exports = {
     '<rootDir>/src',
     '<rootDir>/tests'
   ],
+  testPathIgnorePatterns: [
+    '<rootDir>/build/',
+    '<rootDir>/dist/',
+    '<rootDir>/tests/scale'
+  ],
   transform: {
     '\\.ts$': 'ts-jest'
   },
