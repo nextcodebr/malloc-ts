@@ -198,7 +198,7 @@ export class DLAllocator32 implements Allocator {
     return this.chunkSize(memToChunk(address)) - SIZE_T_SIZE_X2
   }
 
-  public save (dst: Buffer) {
+  public storeOn (dst: Buffer) {
     let off = dst.writeInt32LE(this.smallMap)
     off = dst.writeInt32LE(this.designatedVictimSize, off)
     off = dst.writeInt32LE(this.treeMap, off)
