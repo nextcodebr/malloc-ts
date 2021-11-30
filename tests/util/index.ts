@@ -41,3 +41,10 @@ export const range = function* (min: number, max: number) {
     yield min++
   }
 }
+
+// eslint-disable-next-line generator-star-spacing
+export const bigRange = function* (min: bigint, max: bigint) {
+  while (min < max) {
+    yield min++
+  }
+}
