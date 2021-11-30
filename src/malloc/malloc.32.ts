@@ -171,11 +171,19 @@ export class DLAllocator32 implements Allocator {
     return this.dlfree(address, true)
   }
 
-  public getMaximumAddress (): offset {
+  public get maximumAddress (): offset {
     return MAX_SIGNED_32
   }
 
-  public getMinimalSize (): usize {
+  public get maxRequest (): usize {
+    return MAX_REQUEST
+  }
+
+  public get metadataLength () {
+    return DLAllocator32.metadataOverhead()
+  }
+
+  public get minimalSize (): usize {
     return 32
   }
 
@@ -214,10 +222,6 @@ export class DLAllocator32 implements Allocator {
     for (let i = 0; i < NSMALLBINS; i++) {
       off = dst.writeInt32LE(this.smallBins[i] ?? 0, off)
     }
-  }
-
-  public metadataLength () {
-    return DLAllocator32.metadataOverhead()
   }
 
   private dlmalloc (bytes: number): number {

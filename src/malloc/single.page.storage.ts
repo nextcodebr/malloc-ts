@@ -34,7 +34,7 @@ export class SinglePageStorage implements Storage {
 
     const allocator = DLAllocator32.load(buffer, larval as SinglePageStorage)
 
-    let mem = buffer.slice(allocator.metadataLength())
+    let mem = buffer.slice(allocator.metadataLength)
     if (copy) {
       mem = copyOf(mem)
     }
@@ -131,11 +131,16 @@ export class SinglePageStorage implements Storage {
   }
 
   allocate (bytes: number): number {
-    let rv = this.allocator.allocate(bytes)
-
-    if (rv < 0) {
-      this.expand(bytes)
+    let rv: number
+    if (bytes > this.allocator.maxRequest) {
+      rv = -1
+    } else {
       rv = this.allocator.allocate(bytes)
+
+      if (rv < 0) {
+        this.expand(bytes)
+        rv = this.allocator.allocate(bytes)
+      }
     }
 
     return rv
@@ -184,14 +189,14 @@ export class SinglePageStorage implements Storage {
   }
 
   get imageSize () {
-    return 8 + this.reserved() + this.allocator.metadataLength()
+    return 8 + this.reserved() + this.allocator.metadataLength
   }
 
   storeOn (dst: Buffer) {
     dst.writeBigInt64LE(this.id)
     dst = dst.slice(8)
     this.allocator.storeOn(dst)
-    this.mem.copy(dst, this.allocator.metadataLength())
+    this.mem.copy(dst, this.allocator.metadataLength)
   }
 
   write (p: number, off: number, src: Buffer) {

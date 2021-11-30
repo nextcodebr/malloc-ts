@@ -8,13 +8,14 @@ export type Mem = {
 }
 
 export interface Allocator {
+  maximumAddress: offset
+  minimalSize: usize
+  maxRequest: usize
+  metadataLength: usize
+
   allocate: (size: usize) => offset
 
   free: (address: offset) => boolean
-
-  getMaximumAddress: () => offset
-
-  getMinimalSize: () => usize
 
   expand: (moreBytes: usize) => void
 
@@ -22,7 +23,6 @@ export interface Allocator {
 
   sizeOf: (address: offset) => usize
 
-  metadataLength: () => usize
 }
 
 export interface Storage {

@@ -59,6 +59,10 @@ export class GrowableArray<T> {
     return this.mem.chunk.byteLength >> 2
   }
 
+  public sizeOf (p: number) {
+    return this.storage.sizeOf(p)
+  }
+
   private writeOffset (index: number, p: number) {
     this.mem.chunk.writeInt32LE(p, index << 2)
   }
@@ -108,6 +112,8 @@ export class GrowableArray<T> {
     if (index >= this.size) {
       this.size = index + 1
     }
+
+    return p
   }
 
   private grow (req: number) {

@@ -14,16 +14,20 @@ type VO = {
 
 const VOSerializer: Serializer<VO> = {
   serialize: function (vo, dst) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this
     dst.writeInt32(vo.age)
     dst.writeUTF(vo.name)
     if (vo.siblings) {
       dst.writeBoolean(true)
-      dst.writeStream(vo.siblings, this.serialize)
+      dst.writeStream(vo.siblings, (v, d) => self.serialize(v, d))
     } else {
       dst.writeBoolean(false)
     }
   },
   deserialize: function (src) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this
     const age = src.readInt32()
     const name = src.readUTF()
     const sib = src.readBoolean()
@@ -31,7 +35,7 @@ const VOSerializer: Serializer<VO> = {
     let siblings
 
     if (sib) {
-      siblings = src.readStream(this.deserialize)
+      siblings = src.readStream(s => self.deserialize(s))
     }
 
     return {
@@ -80,6 +84,55 @@ const roundtrip = (array: GrowableArray<VO>, max: number) => {
     }
   }
 }
+
+describe('Test Array (Coverage)', () => {
+  it('Will fail if huge', () => {
+    expect(() => {
+      try {
+        return new GrowableArray(256 * 1024 * 1024, VOSerializer)
+      } catch (e) {
+        throw new Error(((e as any).message as string) ?? '')
+      }
+    }).toThrow(Error)
+
+    expect(() => {
+      try {
+        return new GrowableArray(512 * 1024 * 1024, VOSerializer, 0)
+      } catch (e) {
+        throw new Error(((e as any).message as string) ?? '')
+      }
+    }).toThrow(Error)
+  })
+
+  const array = new GrowableArray(16, VOSerializer)
+
+  expect(array.pop()).toBeUndefined()
+
+  array.push(mock(0))
+  expect(array.length).toBe(1)
+  const pop = array.pop()!
+  expect(array.length).toBe(0)
+  expect(pop.name).toBe(mock(0).name)
+  expect(pop.age).toBe(mock(0).age)
+  expect(array.pop()).toBeUndefined()
+  expect(array.length).toBe(0)
+
+  expect(array.get(-1)).toBeUndefined()
+  expect(array.get(array.length)).toBeUndefined()
+
+  const p = array.set(1, mock(1))
+  const ps = array.sizeOf(p)
+  const q = array.set(1, mock(1))
+  expect(q).toBe(p)
+
+  const large = mock(0)
+  for (let i = 0; i < 20; i++) {
+    large.siblings?.push(mock(i + 1))
+  }
+
+  const r = array.set(1, large)
+  expect(array.sizeOf(r)).toBeGreaterThan(ps)
+})
 
 describe('Test Storage', () => {
   const array = new GrowableArray(16, VOSerializer)
