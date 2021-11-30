@@ -1,18 +1,7 @@
 import { NewStorage } from '@/malloc'
 import { logg } from '@/log'
+import { shuffle } from './util'
 import random from 'random'
-
-const swap = <T> (array: T[], i: number, j: number) => {
-  const tmp = array[i]
-  array[i] = array[j]
-  array[j] = tmp
-}
-
-const shuffle = <T> (array: T[]) => {
-  for (let i = array.length; i > 1; i--) {
-    swap(array, i - 1, random.int(0, i - 1))
-  }
-}
 
 const update = (v: { req: { min: number, max: number }, actual: { min: number, max: number } }, req: number, sz: number) => {
   if (req > v.req.max) {
