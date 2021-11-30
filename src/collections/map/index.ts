@@ -1,17 +1,23 @@
-import { check, ISegment, Options } from './segment'
+import { check, ISegment, Options, BufferUnderflowError } from './segment'
 import { ObjSegment } from './obj.segment'
 import { Int32Segment } from './int32.segment'
 import { inflate, isBuffer, Serializer, sync } from '../../io'
 import { PathLike } from 'fs'
+
+export { BufferUnderflowError }
 
 export interface IMap<K, V> {
   put: (key: K, val: V, returnOld?: boolean) => V | null
 
   putIfAbsent: (key: K, val: V, returnOld?: boolean) => V | null
 
+  computeIfAbsent: (key: K, map: (k: K) => V, returnOld?: boolean) => V | null
+
   remove: (key: K, returnOld?: boolean) => V | null
 
   get: (key: K, stamp?: false) => V | null
+
+  clear: () => number
 
   keys: () => Generator<K, void, unknown>
 
@@ -73,10 +79,20 @@ abstract class BaseMap<K, V> implements IMap<K, V> {
     return this.segmentFor(hash).put(hash, key, val, returnOld, true)
   }
 
+  public computeIfAbsent (key: K, map: (k: K) => V, returnOld = false) {
+    const hash = Math.abs(this.hash(check(key)))
+
+    return this.segmentFor(hash).put(hash, key, (undefined as unknown) as V, returnOld, true, map)
+  }
+
   public remove (key: K, returnOld = false): V | null {
     const hash = Math.abs(this.hash(check(key)))
 
     return this.segmentFor(hash).remove(hash, key, returnOld)
+  }
+
+  public clear (): number {
+    return this.segments.reduce((l: number, r: ISegment<K, V>) => l + r.clear(), 0)
   }
 
   private segmentFor (hash: number): ISegment<K, V> {

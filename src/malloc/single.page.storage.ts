@@ -1,4 +1,4 @@
-import { Allocator, Mem, offset, Storage } from './share'
+import { Allocator, Mem, offset, ReleaseOption, Storage } from './share'
 import { DLAllocator32 } from './malloc.32'
 import { logg, Level } from '../log'
 import { PathLike } from 'fs'
@@ -130,7 +130,7 @@ export class SinglePageStorage implements Storage {
 
   }
 
-  allocate (bytes: number): number {
+  public allocate (bytes: number): number {
     let rv: number
     if (bytes > this.allocator.maxRequest) {
       rv = -1
@@ -146,7 +146,7 @@ export class SinglePageStorage implements Storage {
     return rv
   }
 
-  malloc (bytes: number): Mem | null {
+  public malloc (bytes: number): Mem | null {
     const offset = this.allocate(bytes)
 
     if (offset < 0) {
@@ -159,11 +159,11 @@ export class SinglePageStorage implements Storage {
     }
   }
 
-  free (address: number): boolean {
+  public free (address: number): boolean {
     return this.allocator.free(address)
   }
 
-  slice (p: offset, off = 0, length?: number): Buffer {
+  public slice (p: offset, off = 0, length?: number): Buffer {
     const sz = this.sizeOf(p)
     off = off ?? 0
     length = length ?? sz
@@ -184,26 +184,39 @@ export class SinglePageStorage implements Storage {
     return this.slice(p, 0, length)
   }
 
-  reserved (): number {
+  public get reserved (): number {
     return this.mem.byteLength
   }
 
-  get imageSize () {
-    return 8 + this.reserved() + this.allocator.metadataLength
+  public get imageSize () {
+    return 8 + this.reserved + this.allocator.metadataLength
   }
 
-  storeOn (dst: Buffer) {
+  public storeOn (dst: Buffer) {
     dst.writeBigInt64LE(this.id)
     dst = dst.slice(8)
     this.allocator.storeOn(dst)
     this.mem.copy(dst, this.allocator.metadataLength)
   }
 
-  write (p: number, off: number, src: Buffer) {
+  public write (p: number, off: number, src: Buffer) {
     const sz = this.sizeOf(p)
     if (off < 0 || (off + src.byteLength) > sz) {
       throw new Error(`Invalid memory access: ${off}+${src.byteLength} > ${p}+${sz}`)
     }
     src.copy(this.mem, p + off, 0, src.byteLength)
+  }
+
+  public release (option: ReleaseOption) {
+    const res = this.reserved
+    if (res) {
+      this.allocator.clear()
+
+      if (option === ReleaseOption.Physical) {
+        this.mem = EMPTY
+      } else {
+        this.allocator.expand(res)
+      }
+    }
   }
 }

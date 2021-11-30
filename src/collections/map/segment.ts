@@ -1,10 +1,13 @@
+import { ReleaseOption } from '@/malloc/share'
 import { PathLike } from 'fs'
 import { copyOf, inflate, Pipe, Serializer } from '../../io'
 import { LoadStorage, NewStorage, Storage } from '../../malloc'
 
+export class BufferUnderflowError extends Error { }
+
 export const checkUnderflow = (expected: number, got: number) => {
   if (got !== expected) {
-    throw new Error(`Buffer underflow: Expected ${expected} got ${got}`)
+    throw new BufferUnderflowError(`Buffer underflow: Expected ${expected} got ${got}`)
   }
 }
 
@@ -14,6 +17,8 @@ export interface ISegment<K, V> {
   put: (hash: number, key: K, value: V, returnOld: boolean, onlyIfAbsent: boolean, map?: (k: K) => V) => V | null
 
   remove: (hash: number, key: K, returnOld: boolean) => V | null
+
+  clear: () => number
 
   keys: () => Generator<K, void, unknown>
 
@@ -51,6 +56,8 @@ export abstract class Segment<K, V> implements ISegment<K, V> {
   abstract put (hash: number, key: K, value: V, returnOld: boolean, onlyIfAbsent: boolean, map?: (k: K) => V): V | null
 
   abstract remove (hash: number, key: K, returnOld: boolean): V | null
+
+  abstract clear (): number
 
   protected abstract root (index: number): number
 
@@ -341,26 +348,6 @@ export abstract class Segment<K, V> implements ISegment<K, V> {
     }
   }
 
-  protected successor (t: number): number {
-    if (t === 0) {
-      return 0
-    } else if (this.right(t) !== 0) {
-      let p = this.right(t)
-      while (this.left(p) !== 0) {
-        p = this.left(p)
-      }
-      return p
-    } else {
-      let p = this.parent(t)
-      let ch = t
-      while (p !== 0 && ch === this.right(p)) {
-        ch = p
-        p = this.parent(p)
-      }
-      return p
-    }
-  }
-
   protected abstract get tabLength (): number
 
   protected abstract readKey (p: number): K
@@ -373,7 +360,7 @@ export abstract class Segment<K, V> implements ISegment<K, V> {
 
       while (e) {
         yield e
-        e = this.successor(e)
+        e = this.next(e)
       }
     }
   }
@@ -485,6 +472,14 @@ export abstract class HashedSegment<K, V> extends Segment<K, V> {
       throw new Error(`Invalid pointer ${e}`)
     }
     this.storage.free(e)
+  }
+
+  public clear () {
+    const sz = this.sz
+    this.table.fill(0)
+    this.storage.release(ReleaseOption.Physical)
+    this.sz = 0
+    return sz
   }
 }
 

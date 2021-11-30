@@ -2,6 +2,11 @@ export type i32 = number
 export type usize = number
 export type offset = number
 
+export const enum ReleaseOption {
+  Logical = 1,
+  Physical = 2
+}
+
 export type Mem = {
   offset: offset
   chunk: Buffer
@@ -23,9 +28,15 @@ export interface Allocator {
 
   sizeOf: (address: offset) => usize
 
+  clear: () => void
 }
 
 export interface Storage {
+
+  imageSize: number
+
+  reserved: number
+
   allocate: (size: usize) => offset
 
   getByte: (p: offset) => number
@@ -41,8 +52,6 @@ export interface Storage {
   getLongUnsafe: (p: offset) => bigint
 
   free: (address: offset) => boolean
-
-  imageSize: number
 
   malloc: (size: usize) => Mem | null
 
@@ -62,8 +71,6 @@ export interface Storage {
 
   onReleased: (p: offset) => void
 
-  reserved: () => usize
-
   storeOn: (dst: Buffer) => void
 
   sizeOf: (address: offset) => usize
@@ -80,4 +87,6 @@ export interface Storage {
   slab: (p: offset, length?: usize) => Buffer
 
   write: (p: offset, off: number, b: Buffer) => void
+
+  release: (option: ReleaseOption) => void
 }

@@ -145,7 +145,7 @@ export class DLAllocator32 implements Allocator {
     this.clear()
   }
 
-  private clear () {
+  public clear () {
     this.top = 0
     this.topSize = -TOP_FOOT_SIZE
     // head(top, topSize | PINUSE_BIT);
