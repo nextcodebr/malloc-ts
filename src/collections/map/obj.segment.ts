@@ -99,6 +99,12 @@ export class ObjSegment<K, V> extends HashedSegment<K, V> {
     return ret
   }
 
+  public has (hash: number, key: K) {
+    const e = this.getEntry(key, this.indexFor(hash), hash)
+
+    return e > 0
+  }
+
   private get baseEntrySize () {
     return 19 + this.metadaOverhead()
   }
@@ -127,7 +133,7 @@ export class ObjSegment<K, V> extends HashedSegment<K, V> {
     return this.options & ~(Options.TIMESTAMPS)
   }
 
-  private getEntry (key: K, ix: number, hash: number, stamp = false) {
+  protected getEntry (key: K, ix: number, hash: number, stamp = false) {
     let e = this.root(ix)
     const probe = serialize(this.ks, key)
     const mode = this.cmpMode

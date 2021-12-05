@@ -97,6 +97,12 @@ export class Int32Segment<V> extends HashedSegment<number, V> {
     return ret
   }
 
+  public has (hash: number, key: number) {
+    const e = this.getEntry(key, this.indexFor(hash))
+
+    return e > 0
+  }
+
   protected cloneEntry (p: number, parent: number, left: number, right: number, color: Color) {
     const key = this.readKey(p)
     const vLen = this.maxValLen(p)
@@ -116,7 +122,7 @@ export class Int32Segment<V> extends HashedSegment<number, V> {
     return e
   }
 
-  protected getEntry (key: number, ix: number, stamp = false) {
+  private getEntry (key: number, ix: number, stamp = false) {
     let e = this.root(ix)
 
     while (e > 0) {

@@ -19,6 +19,8 @@ export interface IMap<K, V> {
 
   clear: () => number
 
+  has: (key: K) => boolean
+
   keys: () => Generator<K, void, unknown>
 
   values: () => Generator<V, void, unknown>
@@ -61,34 +63,46 @@ abstract class BaseMap<K, V> implements IMap<K, V> {
     this.segments = this.createSegments(segments, tableSize, ks, vs, flags)
   }
 
-  public put (key: K, val: V, returnOld?: boolean) {
+  private safeHash (key: K) {
     const hash = Math.abs(this.hash(check(key)))
+
+    return Number.isSafeInteger(hash) ? hash >> 0 : 0
+  }
+
+  public put (key: K, val: V, returnOld?: boolean) {
+    const hash = this.safeHash(key)
 
     return this.segmentFor(hash).put(hash, key, val, returnOld ?? false, false)
   }
 
   public get (key: K, stamp?: false) {
-    const hash = Math.abs(this.hash(check(key)))
+    const hash = this.safeHash(key)
 
     return this.segmentFor(hash).get(hash, key, stamp)
   }
 
   public putIfAbsent (key: K, val: V, returnOld = false) {
-    const hash = Math.abs(this.hash(check(key)))
+    const hash = this.safeHash(key)
 
     return this.segmentFor(hash).put(hash, key, val, returnOld, true)
   }
 
   public computeIfAbsent (key: K, map: (k: K) => V, returnOld = false) {
-    const hash = Math.abs(this.hash(check(key)))
+    const hash = this.safeHash(key)
 
     return this.segmentFor(hash).put(hash, key, (undefined as unknown) as V, returnOld, true, map)
   }
 
   public remove (key: K, returnOld = false): V | null {
-    const hash = Math.abs(this.hash(check(key)))
+    const hash = this.safeHash(key)
 
     return this.segmentFor(hash).remove(hash, key, returnOld)
+  }
+
+  public has (key: K): boolean {
+    const hash = this.safeHash(key)
+
+    return this.segmentFor(hash).has(hash, key)
   }
 
   public clear (): number {

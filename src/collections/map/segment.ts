@@ -18,6 +18,8 @@ export interface ISegment<K, V> {
 
   remove: (hash: number, key: K, returnOld: boolean) => V | null
 
+  has: (hash: number, key: K) => boolean
+
   clear: () => number
 
   keys: () => Generator<K, void, unknown>
@@ -56,6 +58,8 @@ export abstract class Segment<K, V> implements ISegment<K, V> {
   abstract put (hash: number, key: K, value: V, returnOld: boolean, onlyIfAbsent: boolean, map?: (k: K) => V): V | null
 
   abstract remove (hash: number, key: K, returnOld: boolean): V | null
+
+  abstract has (hash: number, key: K): boolean
 
   abstract clear (): number
 
