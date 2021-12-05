@@ -209,15 +209,19 @@ describe('Test Map Ops', () => {
   it('Will compute if absent', () => {
     map.clear()
     expect(map.size).toBe(0)
+    expect(map.has(0)).toBeFalsy()
 
     let found = map.computeIfAbsent(0, k => `${k}`)
 
+    expect(map.has(0)).toBeTruthy()
     expect(found).toBe('0')
 
     found = map.computeIfAbsent(0, k => 'Wrong')
+    expect(map.has(0)).toBeTruthy()
     expect(found).toBe(null)
 
     found = map.computeIfAbsent(0, k => 'Wrong', true)
+    expect(map.has(0)).toBeTruthy()
     expect(found).toBe('0')
   })
 
