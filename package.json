@@ -1,5 +1,5 @@
 {
-  "name": "@nxcd/ts-malloc",
+  "name": "@nxcd/malloc-ts",
   "version": "1.0.0",
   "description": "Mem utilities",
   "scripts": {
