@@ -63,6 +63,7 @@ const leftBits = (i: number) => {
   return i << 1 | -(i << 1)
 }
 
+/* istanbul ignore next */
 const assert = (b: boolean, msg?: string) => {
   if (!b) {
     throw new AssertionError(msg ?? '')
@@ -171,6 +172,7 @@ export class DLAllocator32 implements Allocator {
     return this.dlfree(address, true)
   }
 
+  /* istanbul ignore next */
   public get maximumAddress (): offset {
     return MAX_SIGNED_32
   }
@@ -183,6 +185,7 @@ export class DLAllocator32 implements Allocator {
     return DLAllocator32.metadataOverhead()
   }
 
+  /* istanbul ignore next */
   public get minimalSize (): usize {
     return 32
   }
@@ -276,6 +279,7 @@ export class DLAllocator32 implements Allocator {
         const previous = p - previousSize
         psize += previousSize
         p = previous
+        /* istanbul ignore else */
         if (okAddress(previous)) {
           if (p !== this.designatedVictim) {
             this.unlinkChunk(p, previousSize)
@@ -328,9 +332,11 @@ export class DLAllocator32 implements Allocator {
           this.insertLargeChunk(p, psize)
         }
       } else {
+        /* istanbul ignore next */
         DLAssertions.problemWithNext(psize, next, this.previousInUse(next))
       }
     } else {
+      /* istanbul ignore next */
       DLAssertions.notAllocated(mem)
     }
     return true
@@ -376,6 +382,7 @@ export class DLAllocator32 implements Allocator {
       this.setForward(b, f)
       this.setBackward(f, b)
     } else {
+      /* istanbul ignore next */
       throw new AssertionError()
     }
   }
@@ -388,6 +395,7 @@ export class DLAllocator32 implements Allocator {
     return (this.head(p) & PINUSE_BIT) !== 0
   }
 
+  /* istanbul ignore next */
   private checkInUseChunk (p: number) {
     if (VALIDATING) {
       this.checkAnyChunk(p)
@@ -416,6 +424,7 @@ export class DLAllocator32 implements Allocator {
     return p + this.chunkSize(p)
   }
 
+  /* istanbul ignore next */
   private checkAnyChunk (p: number) {
     if (VALIDATING) {
       if (!isAligned(chunkToMem(p))) {
@@ -468,12 +477,51 @@ export class DLAllocator32 implements Allocator {
     return this.storage.getIntUnsafe(p + 4)
   }
 
-  private checkMallocedChunk (mem: any, nb: number) {
-    //
+  /* istanbul ignore next */
+  private checkMallocedChunk (mem: number, s: number) {
+    if (VALIDATING) {
+      const p = memToChunk(mem)
+      const sz = this.head(p) & ~INUSE_BITS
+      this.checkInUseChunk(p)
+      if (sz < MIN_CHUNK_SIZE) {
+        DLAssertions.allocatedTooSmall(p)
+      }
+      if ((sz & CHUNK_ALIGN_MASK) !== 0) {
+        DLAssertions.missaligned(sz, p)
+      }
+      if (sz < s) {
+        DLAssertions.allocatedSmallerThanReq(p, sz, s)
+      }
+      if (sz > s + MIN_CHUNK_SIZE) {
+        DLAssertions.allocatedTooLarge(p, sz, s)
+      }
+    }
   }
 
-  private checkTopChunk (top: number) {
-    //
+  private checkTopChunk (p: number) {
+    if (VALIDATING) {
+      const sz = this.head(p) & ~INUSE_BITS /* third-lowest bit can be set! */
+      if (!isAligned(chunkToMem(p))) {
+        /* istanbul ignore next */
+        DLAssertions.unaligned(p, chunkToMem(p))
+      }
+      if (!okAddress(p)) {
+        /* istanbul ignore next */
+        DLAssertions.topChunkInvalid(p)
+      }
+      if (sz !== this.topSize) {
+        /* istanbul ignore next */
+        DLAssertions.topChunkWrong(sz, this.topSize)
+      }
+      if (sz <= 0) {
+        /* istanbul ignore next */
+        DLAssertions.topChunkNeg(sz)
+      }
+      if (!this.previousInUse(p)) {
+        /* istanbul ignore next */
+        DLAssertions.topChunkNotMerged()
+      }
+    }
   }
 
   private splitFromDesignatedVictim (nb: number): number {
@@ -571,6 +619,7 @@ export class DLAllocator32 implements Allocator {
           return chunkToMem(v)
         }
       } else {
+        /* istanbul ignore next */
         throw new AssertionError()
       }
     }
@@ -626,6 +675,7 @@ export class DLAllocator32 implements Allocator {
             this.setParent(x, -1)
             break
           } else {
+            /* istanbul ignore next */
             throw new AssertionError()
           }
         }
@@ -663,6 +713,7 @@ export class DLAllocator32 implements Allocator {
       this.setBackward(h, p)
       this.setBackward(p, b)
     } else {
+      /* istanbul ignore next */
       throw new AssertionError()
     }
     this.checkFreeChunk(p)
@@ -707,9 +758,11 @@ export class DLAllocator32 implements Allocator {
         this.checkMallocedChunk(mem, nb)
         return mem
       } else {
+        /* istanbul ignore next */
         throw new AssertionError()
       }
     } else {
+      /* istanbul ignore next */
       throw new AssertionError()
     }
   }
@@ -790,6 +843,7 @@ export class DLAllocator32 implements Allocator {
     if (this.backward(x) !== x) {
       const f = this.forward(x)
       r = this.backward(x)
+      /* istanbul ignore else */
       if (okAddress(f)) {
         this.setBackward(f, r)
         this.setForward(r, f)
@@ -814,6 +868,7 @@ export class DLAllocator32 implements Allocator {
           }
         }
 
+        /* istanbul ignore else */
         if (okAddress(rp)) {
           this.setChild(rp, rpIndex, -1)
         } else {
@@ -838,14 +893,17 @@ export class DLAllocator32 implements Allocator {
           this.setChild(xp, 1, r)
         }
       } else {
+        /* istanbul ignore next */
         throw new AssertionError()
       }
 
       if (r !== -1) {
+        /* istanbul ignore else */
         if (okAddress(r)) {
           let c0, c1
           this.setParent(r, xp)
           if ((c0 = this.child(x, 0)) !== -1) {
+            /* istanbul ignore else */
             if (okAddress(c0)) {
               this.setChild(r, 0, c0)
               this.setParent(c0, r)
@@ -854,6 +912,7 @@ export class DLAllocator32 implements Allocator {
             }
           }
           if ((c1 = this.child(x, 1)) !== -1) {
+            /* istanbul ignore else */
             if (okAddress(c1)) {
               this.setChild(r, 1, c1)
               this.setParent(c1, r)
@@ -921,7 +980,44 @@ export class DLAllocator32 implements Allocator {
     return this.head(p) & ~FLAG_BITS
   }
 
-  private checkFreeChunk (x: number) {
-    //    throw new Error('Method not implemented.')
+  /* istanbul ignore next */
+  private checkFreeChunk (p: number) {
+    if (VALIDATING) {
+      const sz = this.chunkSize(p)
+      const next = p + sz
+      this.checkAnyChunk(p)
+      if (this.isInUse(p)) {
+        DLAssertions.freeNotMarkedAsFree(p)
+      }
+      if (this.nextPreviousInUse(p)) {
+        DLAssertions.nextMarkedInUse(p)
+      }
+      if (p !== this.designatedVictim && p !== this.top) {
+        if (sz < MIN_CHUNK_SIZE) {
+          DLAssertions.freeTooSmall(p)
+        }
+        if ((sz & CHUNK_ALIGN_MASK) !== 0) {
+          DLAssertions.missaligned(sz, p)
+        }
+        if (!isAligned(chunkToMem(p))) {
+          DLAssertions.userPointerUnaligned(p)
+        }
+        if (this.prevFoot(next) !== sz) {
+          DLAssertions.nextIncorrectPreviousSize(p)
+        }
+        if (!this.previousInUse(p)) {
+          DLAssertions.beforeNotMerged(p)
+        }
+        if (next !== this.top && !this.isInUse(next)) {
+          DLAssertions.afterNotMerged(p)
+        }
+        if (this.backward(this.forward(p)) !== p) {
+          DLAssertions.invalidChainLinks(p)
+        }
+        if (this.forward(this.backward(p)) !== p) {
+          DLAssertions.invalidChainLinks(p)
+        }
+      }
+    }
   }
 }
