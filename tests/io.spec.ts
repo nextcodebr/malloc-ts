@@ -147,12 +147,18 @@ describe('Source/Sink Streams', () => {
 
 describe('Source/Sink Streams Errors', () => {
   const sink = new Sink(16)
+  const source = new Source(Buffer.alloc(0))
 
   const overflow = /.*is out of range.*/
+  const negativeOffset = /.*<0.*/
 
   it('Will fail on uint8 overflow', () => {
     expect(() => sink.reset().writeUInt8(-1)).toThrow(overflow)
     expect(() => sink.reset().writeUInt8(256)).toThrow(overflow)
+  })
+
+  it('Will fail on negative offset access', () => {
+    expect(() => source.reset().getInt32(-1)).toThrow(negativeOffset)
   })
 })
 
@@ -218,7 +224,7 @@ describe('Arrays', () => {
   it('Will write/read uint64 arrays', () => {
     const values = [...bigRange(0n, 1n << 18n), 1n << 40n]
 
-    sink.reset().writeUint64Array(values)
+    sink.reset().writeUInt64Array(values)
     const alignment = 8
     expect(sink.drainTo(buffer)).toBe(alignment + (1 * 8) + ((1 << 18) * 8))
     const rec = source.reset().readUInt64Array()
@@ -235,6 +241,45 @@ describe('Arrays', () => {
     expect(sink.drainTo(buffer)).toBe(alignment + (2 + (1 << 18)) * 8)
     const rec = source.reset().readInt64Array()
     expect([...rec]).toStrictEqual(values)
+  })
+
+  it('Will write/read typed int64 arrays', () => {
+    const values = [-(1n << 40n), ...bigRange(-(1n << 17n), 1n << 17n), 1n << 40n]
+
+    expect(values.length).toBe(2 + (1 << 18))
+
+    const typed = new BigInt64Array(values)
+
+    sink.reset().writeInt64Array(typed)
+    const alignment = 8
+    expect(sink.drainTo(buffer)).toBe(alignment + (2 + (1 << 18)) * 8)
+    const rec = source.reset().readInt64Array()
+    expect(rec).toStrictEqual(typed)
+    expect([...rec]).toStrictEqual(values)
+  })
+
+  it('Will write/read int64 arrays by promotion', () => {
+    const values = [-(1 << 40), ...range(-(1 << 17), 1 << 17), 1 << 40]
+
+    expect(values.length).toBe(2 + (1 << 18))
+
+    sink.reset().writeInt64Array(values)
+    const alignment = 8
+    expect(sink.drainTo(buffer)).toBe(alignment + (2 + (1 << 18)) * 8)
+    const rec = source.reset().readInt64Array()
+    expect([...rec].map(v => Number(v))).toStrictEqual(values)
+  })
+
+  it('Will write/read uint64 arrays by promotion', () => {
+    const values = [...range(0, 1 << 18), 1 << 40]
+
+    expect(values.length).toBe(1 + (1 << 18))
+
+    sink.reset().writeUInt64Array(values)
+    const alignment = 8
+    expect(sink.drainTo(buffer)).toBe(alignment + (1 + (1 << 18)) * 8)
+    const rec = source.reset().readUInt64Array()
+    expect([...rec].map(v => Number(v))).toStrictEqual(values)
   })
 })
 
@@ -394,6 +439,16 @@ describe('Misc ops', () => {
     sink.reset()
     sink.shrink()
     expect(sink.drainTo(Buffer.alloc(10))).toBe(0)
+  })
+
+  it('Will Fail on bad offsets', () => {
+    expect(() => sink.drainTo(Buffer.alloc(0), -1)).toThrow(Error)
+
+    expect(() => sink.drainTo(Buffer.alloc(0), 0, -1)).toThrow(Error)
+  })
+
+  it('Will Fail on out of range access', () => {
+    expect(() => sink.drainTo(Buffer.alloc(0), 0, 1024)).toThrow(Error)
   })
 })
 
