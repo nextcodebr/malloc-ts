@@ -156,11 +156,7 @@ export class Source {
   }
 
   private require (n: number, off?: number) {
-    checkEof(n, this.length - (off ?? this.pos))
-  }
-
-  readOrEof () {
-    return (this.pos < this.length) ? this.buffer.readUInt8(this.pos++) : -1
+    checkEof(n, this.length - pick(this.pos, off))
   }
 
   readBoolean (): boolean {
@@ -171,9 +167,8 @@ export class Source {
     return rv === 1
   }
 
-  readBooleanArray (off?: number): boolean[] {
+  readBooleanArray (): boolean[] {
     let { pos, buffer } = this
-    pos = pick(pos, off)
     this.require(4, pos)
 
     const length = buffer.readUInt32LE(pos)
@@ -193,9 +188,7 @@ export class Source {
       pos += 8
     }
 
-    if (off !== undefined) {
-      this.pos = pos
-    }
+    this.pos = pos
 
     return rv
   }
@@ -540,7 +533,7 @@ export class Sink {
 
     const src: Buffer | undefined = (a as any).buffer
     if (src) {
-      const tmp = Buffer.from(buffer)
+      const tmp = Buffer.from(src)
       tmp.copy(buffer, pos, 0, length)
       pos += length
     } else {
@@ -695,7 +688,7 @@ export class Sink {
     this.pos += 8
   }
 
-  writeUint64Array (a: number[] | Array<bigint> | BigInt64Array, off?: number) {
+  writeUInt64Array (a: number[] | Array<bigint> | BigInt64Array, off?: number) {
     const big = typeof a[0] === 'bigint'
 
     if (!big) {
