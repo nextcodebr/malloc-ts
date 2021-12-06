@@ -1,4 +1,4 @@
-import { MAX_SIGNED_32 } from '../32bit.math'
+import { MIN_SIGNED_32, MAX_SIGNED_32 } from '../32bit.math'
 import { PathLike, readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { dirname } from 'path'
 import { URL } from 'url'
@@ -421,6 +421,31 @@ export class Source {
     return rv
   }
 
+  readUFloat16 () {
+    const v = this.readUInt16()
+    const d = v >>> 8
+    const f = v & 0xFF
+
+    return d + (f / 100)
+  }
+
+  readVInt32 () {
+    this.require(1)
+    const u = this.buffer
+    let p = this.pos
+    let b = u.readInt8(p++)
+    let v = b & 0x7F
+
+    for (let s = 7; (b & 0x80) !== 0 && s <= 28; s += 7) {
+      this.require(1)
+      v |= ((b = u.readInt8(p++)) & 0x7F) << s
+    }
+
+    this.pos = p
+
+    return v
+  }
+
   private slab (from?: number, length?: number, copy = false, advance = true) {
     from = from !== undefined && from >= 0 && from < this.length ? from : this.pos
     length = length !== undefined && length >= 0 && (length - from) <= this.length ? length : this.length - from
@@ -732,6 +757,56 @@ export class Sink {
     this.pos += len
 
     return len
+  }
+
+  writeUFloat16 (v: number) {
+    const d = ~~v
+    if (d < 0 || d > 255) {
+      throw new Error(`Integer part (${d}) > 8 bytes`)
+    }
+    const f = ((v - d) * 100)
+    let f0 = ~~f
+    const f1 = ((f - f0) * 100)
+    if (f1 > 50) {
+      f0++
+    }
+
+    this.require(2)
+    this.buffer.writeUInt16LE((d << 8) | f0)
+    this.pos += 2
+  }
+
+  writeVInt32 (v: number) {
+    if (v < MIN_SIGNED_32 || v > MAX_SIGNED_32) {
+      throw new Error(`${v} is out of range [${MIN_SIGNED_32},${MAX_SIGNED_32})`)
+    }
+    this.require(5)
+    const b = this.buffer
+    let p = this.pos
+
+    if ((v >>> 7) === 0) {
+      b.writeUInt8(v, p++)
+    } else if ((v >>> 14) === 0) {
+      b.writeUInt8((v & 0x7F) | 0x80, p++)
+      b.writeUInt8((v >>> 7), p++)
+    } else if (v >>> 21 === 0) {
+      b.writeUInt8((v & 0x7F | 0x80), p++)
+      b.writeUInt8((v >>> 7 | 0x80) & 0xFF, p++)
+      b.writeUInt8((v >>> 14), p++)
+    } else if (v >>> 28 === 0) {
+      b.writeUInt8((v & 0x7F | 0x80), p++)
+      b.writeUInt8((v >>> 7 | 0x80) & 0xFF, p++)
+      b.writeUInt8((v >>> 14 | 0x80) & 0xFF, p++)
+      b.writeUInt8((v >>> 21), p++)
+    } else {
+      b.writeUInt8((v & 0x7F | 0x80), p++)
+      b.writeUInt8((v >>> 7 | 0x80) & 0xFF, p++)
+      b.writeUInt8((v >>> 14 | 0x80) & 0xFF, p++)
+      b.writeUInt8((v >>> 21 | 0x80) & 0xFF, p++)
+      b.writeUInt8((v >>> 28), p++)
+    }
+
+    this.pos = p
   }
 
   putInt32 (off: number, value: number) {
