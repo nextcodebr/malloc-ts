@@ -772,7 +772,7 @@ export class Sink {
     }
 
     this.require(2)
-    this.buffer.writeUInt16LE((d << 8) | f0)
+    this.buffer.writeUInt16LE((d << 8) | f0, this.pos)
     this.pos += 2
   }
 
